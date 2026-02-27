@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>KISMET Admin Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial; padding: 20px; background:#f4f6f9; }
+    h1 { text-align: center; }
+    button { margin:5px; padding:10px; cursor:pointer; }
+    canvas { max-width: 500px; margin: 20px auto; display:block; }
+  </style>
+</head>
+<body>
+<h1>KISMET Admin Dashboard</h1>
+
+<input type="number" id="userId" placeholder="Enter User ID for compatibility" />
+<button onclick="loadCompatibility()">Show Most Compatible Users</button>
+<button onclick="loadAnalytics()">Show Trait Averages</button>
+
+<h2>Top Compatible Users</h2>
+<pre id="compatible"></pre>
+
+<h2>Trait Averages</h2>
+<pre id="analytics"></pre>
+
+<canvas id="radarChart"></canvas>
+
+<script>
+async function fetchProfiles() {
+  const res = await fetch("/api/profiles");
+  return await res.json();
+}
+
+async function loadAnalytics() {
+  const data = await fetchProfiles();
+  const traits = ["openness","conscientiousness","extraversion","agreeableness","stability"];
+  const totals = {openness:0, conscientiousness:0, extraversion:0, agreeableness:0, stability:0};
+  data.forEach(u => traits.forEach(t => totals[t] += u[t]));
+  const averages = {};
+  traits.forEach(t => averages[t] = (totals[t]/data.length).toFixed(2));
+  document.getElementById("analytics").textContent = JSON.stringify(averages, null, 2);
+
+  // Radar Chart
+  const ctx = document.getElementById('radarChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: traits,
+      datasets: [{ label: 'Average Traits', data: Object.values(averages), backgroundColor: 'rgba(0,123,255,0.2)', borderColor: 'blue' }]
+    },
+    options: { scales: { r: { min:1, max:5 } } }
+  });
+}
+
+async function loadCompatibility() {
+  const id = document.getElementById("userId").value;
+  if (!id) { alert("Enter a User ID"); return; }
+  const res = await fetch(`/api/profiles?userId=${id}`);
+  const data = await res.json();
+  const top10 = data.slice(0,10);
+  document.getElementById("compatible").textContent = JSON.stringify(top10, null, 2);
+}
+</script>
+</body>
+</html>
